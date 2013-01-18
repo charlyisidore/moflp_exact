@@ -5,8 +5,8 @@
 #include <fstream>
 #include <vector>
 #include <queue>
+#include <list>
 #include <utility>
-#include <limits>
 #include <algorithm>
 #include <ctime>
 
@@ -21,7 +21,7 @@
 	Returns:
 		A set of lexicographic solutions.
 */
-std::vector< std::vector<double> > lexicographic( const problem & instance );
+std::list< std::vector<double> > lexicographic( const problem & instance );
 
 /*
 	Function: dichotomic_method
@@ -34,7 +34,7 @@ std::vector< std::vector<double> > lexicographic( const problem & instance );
 	Returns:
 		A set of supported solutions.
 */
-std::vector< std::vector<double> > dichotomic_method( const problem & instance );
+std::list< std::vector<double> > dichotomic_method( const problem & instance );
 
 /*
 	Function: epsilon_constraint
@@ -47,17 +47,7 @@ std::vector< std::vector<double> > dichotomic_method( const problem & instance )
 	Returns:
 		A set of efficient solutions.
 */
-std::vector< std::vector<double> > epsilon_constraint( const problem & instance );
-
-/*
-	Function: filter_dominated
-
-	Filter dominated solutions in the Pareto front.
-
-	Parameters:
-		pareto_front - A Pareto front.
-*/
-void filter_dominated( std::vector< std::vector<double> > & pareto_front );
+std::list< std::vector<double> > epsilon_constraint( const problem & instance );
 
 /*
 	Function: display
@@ -67,7 +57,7 @@ void filter_dominated( std::vector< std::vector<double> > & pareto_front );
 	Parameters:
 		pareto_front - A Pareto front.
 */
-void display( const std::vector< std::vector<double> > & pareto_front );
+void display( const std::list< std::vector<double> > & pareto_front );
 
 /*
 	Function: predicate_is_dominated
@@ -77,13 +67,18 @@ void display( const std::vector< std::vector<double> > & pareto_front );
 	Parameters:
 		z - A point.
 */
-struct predicate_is_dominated;
+struct predicate_is_dominated
+{
+	const std::list< std::vector<double> > & s;
+	predicate_is_dominated( const std::list< std::vector<double> > & s ) : s( s ) {}
+	bool operator () ( const std::vector<double> & z ) const;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
 int main( int argc, char * argv[] )
 {
-	std::vector< std::vector<double> > pareto_front;
+	std::list< std::vector<double> > pareto_front;
 	std::ifstream file;
 	std::time_t t_start, t_end;
 
@@ -117,7 +112,7 @@ int main( int argc, char * argv[] )
 		std::clog << "Parsing " << argument::filename << "..." << std::endl;
 	}
 
-	problem instance( argument::capacitated );
+	problem instance( argument::capacitated, argument::single_sourcing );
 	file >> instance;
 
 	// Begin benchmark
@@ -151,14 +146,16 @@ int main( int argc, char * argv[] )
 		std::clog << "Filtering..." << std::endl;
 	}
 
-	filter_dominated( pareto_front );
+	pareto_front.remove_if( predicate_is_dominated( pareto_front ) );
 
 	// Display
 	display( pareto_front );
 
 	if ( argument::verbose )
 	{
-		std::clog << "Elapsed time: " << ( t_end - t_start ) / (double)CLOCKS_PER_SEC << "s" << std::endl;
+		std::clog << "Elapsed time: "
+			<< ( t_end - t_start ) / (double)CLOCKS_PER_SEC
+			<< "s" << std::endl;
 	}
 
 	return 0;
@@ -166,17 +163,10 @@ int main( int argc, char * argv[] )
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct predicate_is_dominated
+std::list< std::vector<double> > lexicographic( const problem & instance )
 {
-	const std::vector< std::vector<double> > & s;
-	predicate_is_dominated( const std::vector< std::vector<double> > & s ) : s( s ) {}
-	bool operator () ( const std::vector<double> & z ) const;
-};
-
-std::vector< std::vector<double> > lexicographic( const problem & instance )
-{
-	std::vector< std::vector<double> > pareto_front;
-	flp_solver solve( instance );
+	std::list< std::vector<double> > pareto_front;
+	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y( 2 );
 
 	// Find the lexicographically optimal solutions
@@ -193,11 +183,12 @@ std::vector< std::vector<double> > lexicographic( const problem & instance )
 	return pareto_front;
 }
 
-std::vector< std::vector<double> > dichotomic_method( const problem & instance )
+std::list< std::vector<double> > dichotomic_method( const problem & instance )
 {
-	std::vector< std::vector<double> > pareto_front;
+	std::list< std::vector<double> > pareto_front;
+	std::list< std::vector<double> >::const_iterator it;
 	std::queue< std::pair< std::vector<double>, std::vector<double> > > triangles;
-	flp_solver solve( instance );
+	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y1( 2 ), y2( 2 ), y( 2 );
 
 	// Find the lexicographically optimal solutions
@@ -216,13 +207,13 @@ std::vector< std::vector<double> > dichotomic_method( const problem & instance )
 
 	if ( argument::verbose )
 	{
-		for ( std::size_t i = 0; i < pareto_front.size(); ++i )
+		for ( it = pareto_front.begin(); it != pareto_front.end(); ++it )
 		{
-			for ( std::size_t k = 0; k < pareto_front[i].size(); ++k )
+			for ( std::size_t k = 0; k < it->size(); ++k )
 			{
 				if ( k > 0 )
 					std::clog << ' ';
-				std::clog << pareto_front[i].at( k );
+				std::clog << it->at( k );
 			}
 			std::clog << std::endl;
 		}
@@ -268,14 +259,23 @@ std::vector< std::vector<double> > dichotomic_method( const problem & instance )
 	return pareto_front;
 }
 
-std::vector< std::vector<double> > epsilon_constraint( const problem & instance )
+std::list< std::vector<double> > epsilon_constraint( const problem & instance )
 {
-	std::vector< std::vector<double> > pareto_front;
-	flp_solver solve( instance );
+	std::list< std::vector<double> > pareto_front;
+	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y( 2 );
 
-	// Initialize epsilon = infinity
-	double epsilon = std::numeric_limits<double>::infinity();
+	// Initialize epsilon (default: infinity)
+	double epsilon = argument::from;
+
+	if ( argument::verbose )
+	{
+		for ( int k = 0; k < instance.num_objectives; ++k )
+		{
+			std::clog << "z" << k << ' ';
+		}
+		std::clog << "epsilon" << std::endl;
+	}
 
 	while ( solve.epsilon_constraint( epsilon ) )
 	{
@@ -284,45 +284,33 @@ std::vector< std::vector<double> > epsilon_constraint( const problem & instance 
 		y[1] = solve.z( 1 );
 		pareto_front.push_back( y );
 
-		// Update the epsilon value
-		epsilon = y[1] - 1;
-
 		if ( argument::verbose )
 		{
 			for ( std::size_t k = 0; k < pareto_front.back().size(); ++k )
 			{
-				if ( k > 0 )
-					std::clog << ' ';
-				std::clog << pareto_front.back().at( k );
+				std::clog << pareto_front.back().at( k ) << ' ';
 			}
-			std::clog << std::endl;
+			std::clog << epsilon << std::endl;
 		}
+
+		// Update the epsilon value
+		epsilon = y[1] - argument::step;
 	}
 
 	return pareto_front;
 }
 
-void filter_dominated( std::vector< std::vector<double> > & pareto_front )
+void display( const std::list< std::vector<double> > & pareto_front )
 {
-	for ( std::vector< std::vector<double> >::iterator it = pareto_front.begin(); it != pareto_front.end(); )
-	{
-		it = std::find_if( it, pareto_front.end(), predicate_is_dominated( pareto_front ) );
-		if ( it != pareto_front.end() )
-		{
-			it = pareto_front.erase( it );
-		}
-	}
-}
+	std::list< std::vector<double> >::const_iterator it;
 
-void display( const std::vector< std::vector<double> > & pareto_front )
-{
-	for ( std::size_t i = 0; i < pareto_front.size(); ++i )
+	for ( it = pareto_front.begin(); it != pareto_front.end(); ++it )
 	{
-		for ( std::size_t k = 0; k < pareto_front[i].size(); ++k )
+		for ( std::size_t k = 0; k < it->size(); ++k )
 		{
 			if ( k > 0 )
 				std::cout << ' ';
-			std::cout << pareto_front[i][k];
+			std::cout << it->at( k );
 		}
 		std::cout << std::endl;
 	}
@@ -330,16 +318,18 @@ void display( const std::vector< std::vector<double> > & pareto_front )
 
 bool predicate_is_dominated::operator () ( const std::vector<double> & z ) const
 {
-	for ( std::size_t i = 0; i < s.size(); ++i )
+	std::list< std::vector<double> >::const_iterator it;
+
+	for ( it = s.begin(); it != s.end(); ++it )
 	{
 		bool dominated( true );
 
-		if ( &z == &s[i] )
+		if ( &z == &(*it) )
 			dominated = false;
 
 		for ( std::size_t k = 0; dominated && k < z.size(); ++k )
 		{
-			if ( z[k] < s[i][k] )
+			if ( z[k] < it->at( k ) )
 				dominated = false;
 		}
 

@@ -46,14 +46,27 @@ struct argument
 	// Integer or boolean parameters
 	static int
 		capacitated,
+		single_sourcing,
+		relaxation,
 		lexicographic,
 		supported,
 		efficient,
 		verbose,
 		help;
 
+	// Floating point parameters
+	static double
+		from,
+		step;
+
 	// Instance file name
 	static std::string filename;
+
+	// Identifiers
+	enum
+	{
+		id_step = 0x100
+	};
 };
 
 #endif

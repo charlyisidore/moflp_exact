@@ -1,7 +1,6 @@
 #include "flp_solver.hpp"
 #include <scip/scipdefplugins.h>
 #include <scip/retcode.h>
-#include <string>
 #include <sstream>
 
 #define SCIP_CALL_EXC(x)                        \
@@ -14,13 +13,14 @@
 	}                                       \
 }
 
-flp_solver::flp_solver( const problem & instance ) :
+flp_solver::flp_solver( const problem & instance, bool relaxation ) :
 	_instance( instance ),
 	_scip( 0 ),
 	_sol( 0 ),
 	_epsilon_cons( 0 ),
 	_x( _instance.num_customers, std::vector<SCIP_VAR *>( _instance.num_facilities ) ),
-	_y( _instance.num_facilities )
+	_y( _instance.num_facilities ),
+	_relaxation( relaxation )
 {
 	// initialize scip
 	SCIP_CALL_EXC( SCIPcreate( &_scip ) );
@@ -29,7 +29,7 @@ flp_solver::flp_solver( const problem & instance ) :
 	SCIP_CALL_EXC( SCIPincludeDefaultPlugins( _scip ) );
 
 	// disable scip output to stdout
-	SCIP_CALL_EXC( SCIPsetMessagehdlr( _scip, 0 ) );
+	SCIPsetMessagehdlrQuiet( _scip, true );
 
 	// create an empty problem
 	SCIP_CALL_EXC( SCIPcreateProb( _scip, "flp", 0, 0, 0, 0, 0, 0, 0 ) );
@@ -45,8 +45,9 @@ flp_solver::flp_solver( const problem & instance ) :
 		namebuf << "y[" << j << "]";
 
 		// create the SCIP_VAR object
-		SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0,
-			_instance.f[0][j], SCIP_VARTYPE_BINARY, true, false, 0, 0, 0, 0, 0 ) );
+		SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, _instance.f[0][j],
+			( _relaxation ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
+			true, false, 0, 0, 0, 0, 0 ) );
 
 		// add the SCIP_VAR object to the scip problem
 		SCIP_CALL_EXC( SCIPaddVar( _scip, var ) );
@@ -65,8 +66,9 @@ flp_solver::flp_solver( const problem & instance ) :
 			namebuf << "x[" << i << "," << j << "]";
 
 			// create the SCIP_VAR object
-			SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0,
-				_instance.c[0][i][j], SCIP_VARTYPE_BINARY, true, false, 0, 0, 0, 0, 0 ) );
+			SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, _instance.c[0][i][j],
+				( _relaxation || !instance.single_sourcing ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
+				true, false, 0, 0, 0, 0, 0 ) );
 
 			// add the SCIP_VAR object to the scip problem
 			SCIP_CALL_EXC( SCIPaddVar( _scip, var ) );
@@ -223,7 +225,9 @@ double flp_solver::z( int k ) const
 
 	for ( int j = 0; j < _instance.num_facilities; ++j )
 	{
-		if ( y(j) )
+		if ( _relaxation )
+			obj += y_real( j ) * _instance.f[k][j];
+		else if ( y( j ) )
 			obj += _instance.f[k][j];
 	}
 
@@ -231,10 +235,26 @@ double flp_solver::z( int k ) const
 	{
 		for ( int j = 0; j < _instance.num_facilities; ++j )
 		{
-			if ( x(i,j) )
+			if ( _relaxation || !_instance.single_sourcing )
+				obj += x_real( i, j ) * _instance.c[k][i][j];
+			else if ( x( i, j ) )
 				obj += _instance.c[k][i][j];
 		}
 	}
 	return obj;
+}
+
+void flp_solver::write_lp( FILE * fp, const std::string & ext ) const
+{
+	SCIPsetMessagehdlrQuiet( _scip, false );
+	SCIP_CALL_EXC( SCIPprintOrigProblem( _scip, fp, ext.empty() ? 0 : ext.c_str(), false ) );
+	SCIPsetMessagehdlrQuiet( _scip, true );
+}
+
+void flp_solver::write_lp( const std::string & filename, const std::string & ext ) const
+{
+	SCIPsetMessagehdlrQuiet( _scip, false );
+	SCIP_CALL_EXC( SCIPwriteOrigProblem( _scip, filename.c_str(), ext.empty() ? 0 : ext.c_str(), false ) );
+	SCIPsetMessagehdlrQuiet( _scip, true );
 }
 
