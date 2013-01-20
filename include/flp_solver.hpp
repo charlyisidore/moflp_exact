@@ -5,7 +5,6 @@
 #include <scip/scip.h>
 #include <vector>
 #include <string>
-#include <cstdlib>
 
 /*
 	Class: flp_solver
@@ -66,6 +65,16 @@ public:
 	double y_real( int j ) const;
 
 	/*
+		Method: get_verblevel
+	*/
+	int get_verblevel() const;
+
+	/*
+		Method: set_verblevel
+	*/
+	void set_verblevel( int level ) const;
+
+	/*
 		Method: write_lp
 	*/
 	void write_lp( FILE * fp = 0, const std::string & ext = "" ) const;
@@ -75,14 +84,51 @@ public:
 	*/
 	void write_lp( const std::string & filename, const std::string & ext = "" ) const;
 
+	// Public attributes
+	const problem & instance;
+
 protected:
-	const problem & _instance;
 	SCIP * _scip;
 	SCIP_SOL * _sol;
 	SCIP_CONS * _epsilon_cons;
 	std::vector< std::vector<SCIP_VAR *> > _x;
 	std::vector<SCIP_VAR *> _y;
 	bool _relaxation;
+
+	/*
+		Method: initialize_problem
+	*/
+	void initialize_problem();
+
+	/*
+		Method: initialize_variables
+	*/
+	void initialize_variables();
+
+	/*
+		Method: initialize_assignment_constraints
+	*/
+	void initialize_assignment_constraints();
+
+	/*
+		Method: initialize_opening_constraints
+	*/
+	void initialize_opening_constraints();
+
+	/*
+		Method: initialize_capacity_constraints
+	*/
+	void initialize_capacity_constraints();
+
+	/*
+		Method: initialize_valid_inequalities
+	*/
+	void initialize_valid_inequalities();
+
+	/*
+		Method: initialize_epsilon_constraint
+	*/
+	void initialize_epsilon_constraints();
 };
 
 ////////////////////////////////////////////////////////////////////////////////

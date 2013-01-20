@@ -16,12 +16,12 @@
 	Get the lexicographic solutions of a problem.
 
 	Parameters:
-		instance - A problem instance.
+		solve - A flp_solver instance.
 
 	Returns:
 		A set of lexicographic solutions.
 */
-std::list< std::vector<double> > lexicographic( const problem & instance );
+std::list< std::vector<double> > lexicographic( flp_solver & solve );
 
 /*
 	Function: dichotomic_method
@@ -29,12 +29,12 @@ std::list< std::vector<double> > lexicographic( const problem & instance );
 	Get the supported solutions of a problem using a dichotomic method.
 
 	Parameters:
-		instance - A problem instance.
+		solve - A flp_solver instance.
 
 	Returns:
 		A set of supported solutions.
 */
-std::list< std::vector<double> > dichotomic_method( const problem & instance );
+std::list< std::vector<double> > dichotomic_method( flp_solver & solve );
 
 /*
 	Function: epsilon_constraint
@@ -42,12 +42,12 @@ std::list< std::vector<double> > dichotomic_method( const problem & instance );
 	Apply epsilon-constraint method to a problem.
 
 	Parameters:
-		instance - A problem instance.
+		solve - A flp_solver instance.
 
 	Returns:
 		A set of efficient solutions.
 */
-std::list< std::vector<double> > epsilon_constraint( const problem & instance );
+std::list< std::vector<double> > epsilon_constraint( flp_solver & solve );
 
 /*
 	Function: display
@@ -124,17 +124,21 @@ int main( int argc, char * argv[] )
 		std::clog << "Solving..." << std::endl;
 	}
 
+	// Initialize solver
+	flp_solver solve( instance, argument::relaxation );
+	solve.set_verblevel( argument::verblevel );
+
 	if ( argument::efficient )
 	{
-		pareto_front = epsilon_constraint( instance );
+		pareto_front = epsilon_constraint( solve );
 	}
 	else if ( argument::supported )
 	{
-		pareto_front = dichotomic_method( instance );
+		pareto_front = dichotomic_method( solve );
 	}
 	else if ( argument::lexicographic )
 	{
-		pareto_front = lexicographic( instance );
+		pareto_front = lexicographic( solve );
 	}
 
 	// End benchmark
@@ -163,10 +167,9 @@ int main( int argc, char * argv[] )
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list< std::vector<double> > lexicographic( const problem & instance )
+std::list< std::vector<double> > lexicographic( flp_solver & solve )
 {
 	std::list< std::vector<double> > pareto_front;
-	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y( 2 );
 
 	// Find the lexicographically optimal solutions
@@ -183,12 +186,11 @@ std::list< std::vector<double> > lexicographic( const problem & instance )
 	return pareto_front;
 }
 
-std::list< std::vector<double> > dichotomic_method( const problem & instance )
+std::list< std::vector<double> > dichotomic_method( flp_solver & solve )
 {
 	std::list< std::vector<double> > pareto_front;
 	std::list< std::vector<double> >::const_iterator it;
 	std::queue< std::pair< std::vector<double>, std::vector<double> > > triangles;
-	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y1( 2 ), y2( 2 ), y( 2 );
 
 	// Find the lexicographically optimal solutions
@@ -259,10 +261,9 @@ std::list< std::vector<double> > dichotomic_method( const problem & instance )
 	return pareto_front;
 }
 
-std::list< std::vector<double> > epsilon_constraint( const problem & instance )
+std::list< std::vector<double> > epsilon_constraint( flp_solver & solve )
 {
 	std::list< std::vector<double> > pareto_front;
-	flp_solver solve( instance, argument::relaxation );
 	std::vector<double> y( 2 );
 
 	// Initialize epsilon (default: infinity)
@@ -270,7 +271,7 @@ std::list< std::vector<double> > epsilon_constraint( const problem & instance )
 
 	if ( argument::verbose )
 	{
-		for ( int k = 0; k < instance.num_objectives; ++k )
+		for ( int k = 0; k < solve.instance.num_objectives; ++k )
 		{
 			std::clog << "z" << k << ' ';
 		}

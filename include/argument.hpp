@@ -51,6 +51,7 @@ struct argument
 		lexicographic,
 		supported,
 		efficient,
+		verblevel,
 		verbose,
 		help;
 
@@ -65,7 +66,8 @@ struct argument
 	// Identifiers
 	enum
 	{
-		id_step = 0x100
+		id_step = 0x100,
+		id_verblevel
 	};
 };
 

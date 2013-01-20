@@ -10,6 +10,7 @@ int argument::relaxation( 0 );
 int argument::lexicographic( 0 );
 int argument::supported( 0 );
 int argument::efficient( 1 );
+int argument::verblevel( 0 );
 int argument::verbose( 1 );
 int argument::help( 0 );
 double argument::from( std::numeric_limits<double>::infinity() );
@@ -28,6 +29,7 @@ static const struct option long_options[] = {
 	{ "efficient",       no_argument,       &argument::efficient,       1   },
 	{ "from",            required_argument, 0,                          'f' },
 	{ "step",            required_argument, 0,                          argument::id_step },
+	{ "verblevel",       required_argument, 0,                          argument::id_verblevel },
 	{ "verbose",         no_argument,       &argument::verbose,         1   },
 	{ "quiet",           no_argument,       &argument::verbose,         0   },
 	{ "help",            no_argument,       &argument::help,            1   },
@@ -82,6 +84,10 @@ void argument::parse( int argc, char *argv[] )
 				std::istringstream( optarg ) >> step;
 				break;
 
+			case argument::id_verblevel:
+				std::istringstream( optarg ) >> verblevel;
+				break;
+
 			case 'v':
 				verbose = 1;
 				break;
@@ -119,6 +125,11 @@ void argument::parse( int argc, char *argv[] )
 	{
 		efficient = 0;
 	}
+
+	if ( !verbose )
+	{
+		verblevel = 0;
+	}
 }
 
 void argument::print( std::ostream & os )
@@ -131,10 +142,23 @@ void argument::print( std::ostream & os )
 		<< "\trelaxation      = " << relaxation      << std::endl
 		<< "\tlexicographic   = " << lexicographic   << std::endl
 		<< "\tsupported       = " << supported       << std::endl
-		<< "\tefficient       = " << efficient       << std::endl
-		<< "\tfrom            = " << from            << std::endl
-		<< "\tstep            = " << step            << std::endl
-		<< "\tverbose         = " << verbose         << std::endl;
+		<< "\tefficient       = " << efficient       << std::endl;
+
+	if ( efficient )
+	{
+		os
+			<< "\tfrom            = " << from << std::endl
+			<< "\tstep            = " << step << std::endl;
+	}
+
+	os
+		<< "\tverbose         = " << verbose << std::endl;
+
+	if ( verbose )
+	{
+		os
+			<< "\tverblevel       = " << verblevel << std::endl;
+	}
 }
 
 void argument::usage( const char * program_name, std::ostream & os )
@@ -149,10 +173,11 @@ void argument::usage( const char * program_name, std::ostream & os )
 		<< "\t-l,--lexicographic  to get lexicographic solutions"        << std::endl
 		<< "\t-s,--supported      to get supported solutions"            << std::endl
 		<< "\t-e,--efficient      to get efficient solutions"            << std::endl
-		<< "\t-f,--from           starting value for epsilon-constraint" << std::endl
-		<< "\t   --step           step value for epsilon-constraint"     << std::endl
+		<< "\t-f,--from <epsilon> starting value for epsilon-constraint" << std::endl
+		<< "\t   --step <delta>   step value for epsilon-constraint"     << std::endl
 		<< "\t-q,--quiet          for quiet mode"                        << std::endl
 		<< "\t-v,--verbose        for verbose mode"                      << std::endl
+		<< "\t-v,--verblevel <lv> SCIP verbosity level"                  << std::endl
 		<< "\t-h,--help           to display this help"                  << std::endl;
 }
 
