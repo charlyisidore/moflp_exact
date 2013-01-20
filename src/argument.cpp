@@ -177,7 +177,7 @@ void argument::usage( const char * program_name, std::ostream & os )
 		<< "\t   --step <delta>   step value for epsilon-constraint"     << std::endl
 		<< "\t-q,--quiet          for quiet mode"                        << std::endl
 		<< "\t-v,--verbose        for verbose mode"                      << std::endl
-		<< "\t-v,--verblevel <lv> SCIP verbosity level"                  << std::endl
+		<< "\t   --verblevel <lv> SCIP verbosity level"                  << std::endl
 		<< "\t-h,--help           to display this help"                  << std::endl;
 }
 
