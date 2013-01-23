@@ -63,9 +63,15 @@ flp_solver::flp_solver( const problem & instance, bool relaxation ) :
 	instance( instance ),
 	_scip( 0 ),
 	_sol( 0 ),
-	_epsilon_cons( 0 ),
 	_x( instance.num_customers, std::vector<SCIP_VAR *>( instance.num_facilities ) ),
 	_y( instance.num_facilities ),
+	_assign_cons( instance.num_customers, (SCIP_CONS *)0 ),
+	_assign_dual( instance.num_customers ),
+	_cap_cons( instance.num_facilities, (SCIP_CONS *)0 ),
+	_cap_dual( instance.num_facilities ),
+	_open_cons( instance.num_customers, std::vector<SCIP_CONS *>( instance.num_facilities, (SCIP_CONS *)0 ) ),
+	_open_dual( instance.num_customers, std::vector<double>( instance.num_facilities ) ),
+	_epsilon_cons( 0 ),
 	_relaxation( relaxation )
 {
 	initialize_problem();
@@ -111,6 +117,9 @@ bool flp_solver::weighted_sum( double lambda )
 	// this tells scip to start the solution process
 	SCIP_CALL_EXC( SCIPpresolve( _scip ) );
 	SCIP_CALL_EXC( SCIPsolve( _scip ) );
+
+	// store dual values before the problem is free
+	store_dual();
 	SCIP_CALL_EXC( SCIPfreeTransform( _scip ) );
 
 	_sol = SCIPgetBestSol( _scip );
@@ -126,6 +135,9 @@ bool flp_solver::epsilon_constraint( double epsilon )
 	// this tells scip to start the solution process
 	SCIP_CALL_EXC( SCIPpresolve( _scip ) );
 	SCIP_CALL_EXC( SCIPsolve( _scip ) );
+
+	// store dual values before the problem is free
+	store_dual();
 	SCIP_CALL_EXC( SCIPfreeTransform( _scip ) );
 
 	_sol = SCIPgetBestSol( _scip );
@@ -276,6 +288,9 @@ void flp_solver::initialize_assignment_constraints()
 
 		// add the constraint to scip
 		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
+
+		// storing the SCIP_CONS pointer for later access
+		_assign_cons[i] = cons;
 	}
 }
 
@@ -300,6 +315,9 @@ void flp_solver::initialize_opening_constraints()
 
 			// add the constraint to scip
 			SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
+
+			// storing the SCIP_CONS pointer for later access
+			_open_cons[i][j] = cons;
 		}
 	}
 }
@@ -326,6 +344,9 @@ void flp_solver::initialize_capacity_constraints()
 
 		// add the constraint to scip
 		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
+
+		// storing the SCIP_CONS pointer for later access
+		_cap_cons[j] = cons;
 	}
 }
 
@@ -383,28 +404,60 @@ void flp_solver::initialize_valid_inequalities()
 
 void flp_solver::initialize_epsilon_constraints()
 {
-	// epsilon constraint on z2
+	SCIP_CONS * cons;
 
-	// create SCIP_CONS object, this is an equality
-	SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &_epsilon_cons, "epsilon", 0, 0, 0,
+	// epsilon constraint on z2
+	SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, "epsilon", 0, 0, 0,
 		-SCIPinfinity( _scip ), SCIPinfinity( _scip ),
 		true, true, true, true, true, false, false, false, false, false ) );
 
 	// z2 <= epsilon
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
-		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, _epsilon_cons, _y[j], instance.f[1][j] ) );
+		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], instance.f[1][j] ) );
 	}
 
 	for ( int i = 0; i < instance.num_customers; ++i )
 	{
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
-			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, _epsilon_cons, _x[i][j], instance.c[1][i][j] ) );
+			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _x[i][j], instance.c[1][i][j] ) );
 		}
 	}
 
 	// add the constraint to scip
-	SCIP_CALL_EXC( SCIPaddCons( _scip, _epsilon_cons ) );
+	SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
+
+	// storing the SCIP_CONS pointer for later access
+	_epsilon_cons = cons;
+}
+
+void flp_solver::store_dual()
+{
+	SCIP_CONS * transformed;
+
+	for ( int i = 0; i < instance.num_customers; ++i )
+	{
+		SCIPgetTransformedCons( _scip, _assign_cons[i], &transformed );
+		if ( transformed )
+			_assign_dual[i] = SCIPgetDualsolLinear( _scip, transformed );
+	}
+
+	for ( int j = 0; j < instance.num_facilities; ++j )
+	{
+		SCIPgetTransformedCons( _scip, _cap_cons[j], &transformed );
+		if ( transformed )
+			_cap_dual[j] = SCIPgetDualsolLinear( _scip, transformed );
+	}
+
+	for ( int i = 0; i < instance.num_customers; ++i )
+	{
+		for ( int j = 0; j < instance.num_facilities; ++j )
+		{
+    			SCIPgetTransformedCons( _scip, _open_cons[i][j], &transformed );
+			if ( transformed )
+				_open_dual[i][j] = SCIPgetDualsolLinear( _scip, transformed );
+		}
+	}
 }
 

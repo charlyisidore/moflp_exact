@@ -65,6 +65,21 @@ public:
 	double y_real( int j ) const;
 
 	/*
+		Method: capacity_dual
+	*/
+	double capacity_dual( int j ) const;
+
+	/*
+		Method: assignment_dual
+	*/
+	double assignment_dual( int i ) const;
+
+	/*
+		Method: opening_dual
+	*/
+	double opening_dual( int i, int j ) const;
+
+	/*
 		Method: get_verblevel
 	*/
 	int get_verblevel() const;
@@ -90,9 +105,15 @@ public:
 protected:
 	SCIP * _scip;
 	SCIP_SOL * _sol;
-	SCIP_CONS * _epsilon_cons;
 	std::vector< std::vector<SCIP_VAR *> > _x;
 	std::vector<SCIP_VAR *> _y;
+	std::vector<SCIP_CONS *> _assign_cons;
+	std::vector<double>      _assign_dual;
+	std::vector<SCIP_CONS *> _cap_cons;
+	std::vector<double>      _cap_dual;
+	std::vector< std::vector<SCIP_CONS *> > _open_cons;
+	std::vector< std::vector<double> >      _open_dual;
+	SCIP_CONS * _epsilon_cons;
 	bool _relaxation;
 
 	/*
@@ -126,9 +147,14 @@ protected:
 	void initialize_valid_inequalities();
 
 	/*
-		Method: initialize_epsilon_constraint
+		Method: initialize_epsilon_constraints
 	*/
 	void initialize_epsilon_constraints();
+
+	/*
+		Method: store_dual
+	*/
+	void store_dual();
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,5 +183,21 @@ inline double flp_solver::y_real( int j ) const
 {
 	return SCIPgetSolVal( _scip, _sol, _y[j] );
 }
+
+inline double flp_solver::capacity_dual( int j ) const
+{
+	return _cap_dual[j];
+}
+
+inline double flp_solver::assignment_dual( int i ) const
+{
+	return _assign_dual[i];
+}
+
+inline double flp_solver::opening_dual( int i, int j ) const
+{
+	return _open_dual[i][j];
+}
+
 
 #endif
