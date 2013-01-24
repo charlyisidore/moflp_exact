@@ -8,6 +8,7 @@ std::istream & operator >> ( std::istream & is, problem & instance )
 	instance.f.clear();
 	instance.d.clear();
 	instance.Q.clear();
+	instance.D = 0.;
 
 	// Number of customers and facilities
 	is >> instance.num_customers;
@@ -53,6 +54,7 @@ std::istream & operator >> ( std::istream & is, problem & instance )
 		for ( int i = 0; i < instance.num_customers; ++i )
 		{
 			is >> instance.d[i];
+			instance.D += instance.d[i];
 		}
 
 		// Read capacities

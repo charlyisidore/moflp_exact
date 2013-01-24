@@ -24,6 +24,19 @@
 std::list< std::vector<double> > lexicographic( flp_solver & solve );
 
 /*
+	Function: weighted_sum
+
+	Get the solution of a weighted sum.
+
+	Parameters:
+		solve - A flp_solver instance.
+
+	Returns:
+		A set of one solution.
+*/
+std::list< std::vector<double> > weighted_sum( flp_solver & solve );
+
+/*
 	Function: dichotomic_method
 
 	Get the supported solutions of a problem using a dichotomic method.
@@ -50,14 +63,49 @@ std::list< std::vector<double> > dichotomic_method( flp_solver & solve );
 std::list< std::vector<double> > epsilon_constraint( flp_solver & solve );
 
 /*
+	Function: display_solution
+
+	Display the x and y values to the terminal.
+
+	Parameters:
+		solve - A flp_solver instance.
+		os - An output stream.
+*/
+void display_solution( const flp_solver & solve, std::ostream & os );
+
+/*
+	Function: display
+
+	Display a point to the terminal.
+
+	Parameters:
+		z - A point.
+		os - An output stream.
+*/
+void display( const std::vector<double> & z, std::ostream & os );
+
+/*
 	Function: display
 
 	Display the Pareto front to the terminal.
 
 	Parameters:
 		pareto_front - A Pareto front.
+		os - An output stream.
 */
-void display( const std::list< std::vector<double> > & pareto_front );
+void display( const std::list< std::vector<double> > & pareto_front, std::ostream & os );
+
+/*
+	Function: display_last
+
+	Display the last solution to the terminal if verbose mode is enabled.
+
+	Parameters:
+		solve - A flp_solver instance.
+		pareto_front - A Pareto front.
+		os - An output stream.
+*/
+void display_last( const flp_solver & solve, const std::list< std::vector<double> > & pareto_front, std::ostream & os );
 
 /*
 	Function: predicate_is_dominated
@@ -136,6 +184,10 @@ int main( int argc, char * argv[] )
 	{
 		pareto_front = dichotomic_method( solve );
 	}
+	else if ( argument::weighted_sum )
+	{
+		pareto_front = weighted_sum( solve );
+	}
 	else if ( argument::lexicographic )
 	{
 		pareto_front = lexicographic( solve );
@@ -153,7 +205,7 @@ int main( int argc, char * argv[] )
 	pareto_front.remove_if( predicate_is_dominated( pareto_front ) );
 
 	// Display
-	display( pareto_front );
+	display( pareto_front, std::cout );
 
 	if ( argument::verbose )
 	{
@@ -172,16 +224,42 @@ std::list< std::vector<double> > lexicographic( flp_solver & solve )
 	std::list< std::vector<double> > pareto_front;
 	std::vector<double> y( 2 );
 
-	// Find the lexicographically optimal solutions
-	solve.weighted_sum( 0 );
-	y[0] = solve.z( 0 );
-	y[1] = solve.z( 1 );
-	pareto_front.push_back( y );
+	// One objective
+	if ( argument::objective )
+	{
+		solve.weighted_sum( argument::objective == 1 ? 0. : 1. );
+		y[0] = solve.z( 0 );
+		y[1] = solve.z( 1 );
+		pareto_front.push_back( y );
+		display_last( solve, pareto_front, std::clog );
+	}
+	else // All objectives
+	{
+		solve.weighted_sum( 0 );
+		y[0] = solve.z( 0 );
+		y[1] = solve.z( 1 );
+		pareto_front.push_back( y );
+		display_last( solve, pareto_front, std::clog );
 
-	solve.weighted_sum( 1 );
+		solve.weighted_sum( 1 );
+		y[0] = solve.z( 0 );
+		y[1] = solve.z( 1 );
+		pareto_front.push_back( y );
+		display_last( solve, pareto_front, std::clog );
+	}
+	return pareto_front;
+}
+
+std::list< std::vector<double> > weighted_sum( flp_solver & solve )
+{
+	std::list< std::vector<double> > pareto_front;
+	std::vector<double> y( 2 );
+
+	solve.weighted_sum( argument::lambda );
 	y[0] = solve.z( 0 );
 	y[1] = solve.z( 1 );
 	pareto_front.push_back( y );
+	display_last( solve, pareto_front, std::clog );
 
 	return pareto_front;
 }
@@ -198,28 +276,16 @@ std::list< std::vector<double> > dichotomic_method( flp_solver & solve )
 	y1[0] = solve.z( 0 );
 	y1[1] = solve.z( 1 );
 	pareto_front.push_back( y1 );
+	display_last( solve, pareto_front, std::clog );
 
 	solve.weighted_sum( 1 );
 	y2[0] = solve.z( 0 );
 	y2[1] = solve.z( 1 );
 	pareto_front.push_back( y2 );
+	display_last( solve, pareto_front, std::clog );
 
 	// Add the first triangle
 	triangles.push( std::make_pair( y1, y2 ) );
-
-	if ( argument::verbose )
-	{
-		for ( it = pareto_front.begin(); it != pareto_front.end(); ++it )
-		{
-			for ( std::size_t k = 0; k < it->size(); ++k )
-			{
-				if ( k > 0 )
-					std::clog << ' ';
-				std::clog << it->at( k );
-			}
-			std::clog << std::endl;
-		}
-	}
 
 	// Solve all triangles
 	while ( !triangles.empty() )
@@ -243,17 +309,7 @@ std::list< std::vector<double> > dichotomic_method( flp_solver & solve )
 				// Solve recursion
 				triangles.push( std::make_pair( y1, y ) );
 				triangles.push( std::make_pair( y, y2 ) );
-
-				if ( argument::verbose )
-				{
-					for ( std::size_t k = 0; k < pareto_front.back().size(); ++k )
-					{
-						if ( k > 0 )
-							std::clog << ' ';
-						std::clog << pareto_front.back().at( k );
-					}
-					std::clog << std::endl;
-				}
+				display_last( solve, pareto_front, std::clog );
 			}
 		}
 	}
@@ -284,15 +340,7 @@ std::list< std::vector<double> > epsilon_constraint( flp_solver & solve )
 		y[0] = solve.z( 0 );
 		y[1] = solve.z( 1 );
 		pareto_front.push_back( y );
-
-		if ( argument::verbose )
-		{
-			for ( std::size_t k = 0; k < pareto_front.back().size(); ++k )
-			{
-				std::clog << pareto_front.back().at( k ) << ' ';
-			}
-			std::clog << epsilon << std::endl;
-		}
+		display_last( solve, pareto_front, std::clog );
 
 		// Update the epsilon value
 		epsilon = y[1] - argument::step;
@@ -301,19 +349,56 @@ std::list< std::vector<double> > epsilon_constraint( flp_solver & solve )
 	return pareto_front;
 }
 
-void display( const std::list< std::vector<double> > & pareto_front )
+void display_solution( const flp_solver & solve, std::ostream & os )
+{
+	os << "y =";
+	for ( int j = 0; j < solve.instance.num_facilities; ++j )
+	{
+		os << ' ' << solve.y_real( j );
+	}
+	os << std::endl;
+
+	for ( int i = 0; i < solve.instance.num_customers; ++i )
+	{
+		os << "x[" << i+1 << "] =";
+		for ( int j = 0; j < solve.instance.num_facilities; ++j )
+		{
+			os << ' ' << solve.x_real( i, j );
+		}
+		os << std::endl;
+	}
+}
+
+void display( const std::vector<double> & z, std::ostream & os )
+{
+	for ( std::size_t k = 0; k < z.size(); ++k )
+	{
+		if ( k > 0 )
+			os << ' ';
+		os << z[k];
+	}
+}
+
+void display( const std::list< std::vector<double> > & pareto_front, std::ostream & os )
 {
 	std::list< std::vector<double> >::const_iterator it;
 
 	for ( it = pareto_front.begin(); it != pareto_front.end(); ++it )
 	{
-		for ( std::size_t k = 0; k < it->size(); ++k )
-		{
-			if ( k > 0 )
-				std::cout << ' ';
-			std::cout << it->at( k );
-		}
-		std::cout << std::endl;
+		display( *it, os );
+		os << std::endl;
+	}
+}
+
+void display_last( const flp_solver & solve, const std::list< std::vector<double> > & pareto_front, std::ostream & os )
+{
+	if ( argument::verbose )
+	{
+		display( pareto_front.back(), os );
+		os << std::endl;
+
+		if ( argument::display_solution )
+			display_solution( solve, os );
 	}
 }
 

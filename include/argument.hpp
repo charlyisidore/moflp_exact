@@ -49,14 +49,18 @@ struct argument
 		single_sourcing,
 		relaxation,
 		lexicographic,
+		weighted_sum,
 		supported,
 		efficient,
+		objective,
+		display_solution,
 		verblevel,
 		verbose,
 		help;
 
 	// Floating point parameters
 	static double
+		lambda,
 		from,
 		step;
 
@@ -66,8 +70,7 @@ struct argument
 	// Identifiers
 	enum
 	{
-		id_step = 0x100,
-		id_verblevel
+		id_step = 0x100
 	};
 };
 

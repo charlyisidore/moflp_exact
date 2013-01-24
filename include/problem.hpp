@@ -47,6 +47,7 @@ struct problem
 	bool single_sourcing;    // true if SSCFLP, false otherwise
 	std::vector<double> d;   // Demand of customers
 	std::vector<double> Q;   // Capacity of facilities
+	double D;                // Total demand
 };
 
 std::istream & operator >> ( std::istream & is, problem & instance );
