@@ -31,7 +31,7 @@ static const struct option long_options[] = {
 	{ "lexicographic",    optional_argument, 0,                           'l' },
 	{ "weighted-sum",     required_argument, 0,                           'w' },
 	{ "supported",        no_argument,       &argument::supported,        1   },
-	{ "efficient",        no_argument,       &argument::efficient,        1   },
+	{ "efficient",        optional_argument, 0,                           'e' },
 	{ "from",             required_argument, 0,                           'f' },
 	{ "step",             required_argument, 0,                           argument::id_step },
 	{ "display-solution", no_argument,       &argument::display_solution, 1   },
@@ -89,6 +89,11 @@ void argument::parse( int argc, char *argv[] )
 
 			case 'e':
 				efficient = 1;
+				if ( optarg )
+				{
+					std::istringstream( optarg ) >> objective;
+					--objective;
+				}
 				break;
 
 			case 'f':
@@ -173,6 +178,12 @@ void argument::print( std::ostream & os )
 			<< "\tobjective        = " << objective << std::endl;
 	}
 
+	if ( efficient )
+	{
+		os
+			<< "\tobjective        = " << objective+1 << std::endl;
+	}
+
 	if ( weighted_sum )
 	{
 		os
@@ -207,10 +218,11 @@ void argument::usage( const char * program_name, std::ostream & os )
 		<< "\t-m,--multi-sourcing    for multi sourcing facility location"  << std::endl
 		<< "\t-r,--relaxation        for relaxed problem"                   << std::endl
 		<< "\t-l,--lexicographic     to get lexicographic solutions"        << std::endl
-		<< "\t   --lexicographic <k> to compute only for objective k"       << std::endl
+		<< "\t   --lexicographic=<k> to compute only for objective k"       << std::endl
 		<< "\t-w,--weighted-sum <w>  to get a solution of a weighted sum"   << std::endl
 		<< "\t-s,--supported         to get supported solutions"            << std::endl
 		<< "\t-e,--efficient         to get efficient solutions"            << std::endl
+		<< "\t   --efficient=<k>     to set objective k as main objective"  << std::endl
 		<< "\t-f,--from <epsilon>    starting value for epsilon-constraint" << std::endl
 		<< "\t   --step <delta>      step value for epsilon-constraint"     << std::endl
 		<< "\t   --display-solution  to display x and y values"             << std::endl

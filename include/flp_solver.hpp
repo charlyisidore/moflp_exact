@@ -80,6 +80,16 @@ public:
 	double opening_dual( int i, int j ) const;
 
 	/*
+		Method: get_main_objective
+	*/
+	int get_main_objective() const;
+
+	/*
+		Method: set_main_objective
+	*/
+	void set_main_objective( int k );
+
+	/*
 		Method: get_verblevel
 	*/
 	int get_verblevel() const;
@@ -114,6 +124,7 @@ protected:
 	std::vector< std::vector<SCIP_CONS *> > _open_cons;
 	std::vector< std::vector<double> >      _open_dual;
 	SCIP_CONS * _epsilon_cons;
+	int _mainobj;
 	bool _relaxation;
 
 	/*
@@ -199,5 +210,9 @@ inline double flp_solver::opening_dual( int i, int j ) const
 	return _open_dual[i][j];
 }
 
+inline int flp_solver::get_main_objective() const
+{
+	return _mainobj;
+}
 
 #endif

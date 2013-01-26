@@ -321,18 +321,12 @@ std::list< std::vector<double> > epsilon_constraint( flp_solver & solve )
 {
 	std::list< std::vector<double> > pareto_front;
 	std::vector<double> y( 2 );
+	int obj1 = argument::objective, obj2 = ( argument::objective == 0 ? 1 : 0 );
+
+	solve.set_main_objective( obj1 );
 
 	// Initialize epsilon (default: infinity)
 	double epsilon = argument::from;
-
-	if ( argument::verbose )
-	{
-		for ( int k = 0; k < solve.instance.num_objectives; ++k )
-		{
-			std::clog << "z" << k << ' ';
-		}
-		std::clog << "epsilon" << std::endl;
-	}
 
 	while ( solve.epsilon_constraint( epsilon ) )
 	{
@@ -343,7 +337,7 @@ std::list< std::vector<double> > epsilon_constraint( flp_solver & solve )
 		display_last( solve, pareto_front, std::clog );
 
 		// Update the epsilon value
-		epsilon = y[1] - argument::step;
+		epsilon = y[obj2] - argument::step;
 	}
 
 	return pareto_front;

@@ -72,6 +72,7 @@ flp_solver::flp_solver( const problem & instance, bool relaxation ) :
 	_open_cons( instance.num_customers, std::vector<SCIP_CONS *>( instance.num_facilities, (SCIP_CONS *)0 ) ),
 	_open_dual( instance.num_customers, std::vector<double>( instance.num_facilities ) ),
 	_epsilon_cons( 0 ),
+	_mainobj( 0 ),
 	_relaxation( relaxation )
 {
 	initialize_problem();
@@ -97,11 +98,13 @@ flp_solver::~flp_solver()
 
 bool flp_solver::weighted_sum( double lambda )
 {
+	int k = _mainobj, l = ( _mainobj == 1 ? 0 : 1 );
+
 	// modify objective of y(j)
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
 		SCIP_CALL_EXC( SCIPchgVarObj( _scip, _y[j],
-			( 1. - lambda ) * instance.f[0][j] + lambda * instance.f[1][j] ) );
+			( 1. - lambda ) * instance.f[k][j] + lambda * instance.f[l][j] ) );
 	}
 
 	// modify objective of x(i,j)
@@ -110,7 +113,7 @@ bool flp_solver::weighted_sum( double lambda )
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
 			SCIP_CALL_EXC( SCIPchgVarObj( _scip, _x[i][j],
-				( 1. - lambda ) * instance.c[0][i][j] + lambda * instance.c[1][i][j] ) );
+				( 1. - lambda ) * instance.c[k][i][j] + lambda * instance.c[l][i][j] ) );
 		}
 	}
 
@@ -198,6 +201,29 @@ void flp_solver::write_lp( const std::string & filename, const std::string & ext
 	set_verblevel( level );
 }
 
+void flp_solver::set_main_objective( int k )
+{
+	_mainobj = k;
+
+	SCIP_CALL_EXC( SCIPdelCons( _scip, _epsilon_cons ) );
+	initialize_epsilon_constraints();
+
+	// modify objective of y(j)
+	for ( int j = 0; j < instance.num_facilities; ++j )
+	{
+		SCIP_CALL_EXC( SCIPchgVarObj( _scip, _y[j], instance.f[k][j] ) );
+	}
+
+	// modify objective of x(i,j)
+	for ( int i = 0; i < instance.num_customers; ++i )
+	{
+		for ( int j = 0; j < instance.num_facilities; ++j )
+		{
+			SCIP_CALL_EXC( SCIPchgVarObj( _scip, _x[i][j], instance.c[k][i][j] ) );
+		}
+	}
+}
+
 void flp_solver::initialize_problem()
 {
 	SCIP_MESSAGEHDLR * messagehdlr;
@@ -225,6 +251,8 @@ void flp_solver::initialize_problem()
 
 void flp_solver::initialize_variables()
 {
+	int k = _mainobj;
+
 	// create a binary variable for every y(j)
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
@@ -233,7 +261,7 @@ void flp_solver::initialize_variables()
 		namebuf << "y[" << j << "]";
 
 		// create the SCIP_VAR object
-		SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, instance.f[0][j],
+		SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, instance.f[k][j],
 			( _relaxation ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
 			true, false, 0, 0, 0, 0, 0 ) );
 
@@ -254,7 +282,7 @@ void flp_solver::initialize_variables()
 			namebuf << "x[" << i << "," << j << "]";
 
 			// create the SCIP_VAR object
-			SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, instance.c[0][i][j],
+			SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, instance.c[k][i][j],
 				( _relaxation || !instance.single_sourcing ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
 				true, false, 0, 0, 0, 0, 0 ) );
 
@@ -378,6 +406,28 @@ void flp_solver::initialize_valid_inequalities()
 		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
 	}
 
+	// demand limit
+	{
+		SCIP_CONS * cons;
+
+		SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, "limit", 0, 0, 0,
+			-SCIPinfinity( _scip ), D,
+			true, true, true, true, true, false, false, false, false, false ) );
+
+		// sum(i=1 to m) sum(j=1 to n) d(i) x(i,j) <= sum(i=1 to m) d(i)
+		for ( int i = 0; i < instance.num_customers; ++i )
+		{
+			for ( int j = 0; j < instance.num_facilities; ++j )
+			{
+				SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _x[i][j], instance.d[i] ) );
+			}
+		}
+
+		// add the constraint to scip
+		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
+	}
+
+#if 0
 	// maximum number of assignments for a facility
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
@@ -400,28 +450,30 @@ void flp_solver::initialize_valid_inequalities()
 		// add the constraint to scip
 		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
 	}
+#endif
 }
 
 void flp_solver::initialize_epsilon_constraints()
 {
 	SCIP_CONS * cons;
+	int k = _mainobj == 0 ? 1 : 0;
 
-	// epsilon constraint on z2
+	// epsilon constraint on second objective
 	SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, "epsilon", 0, 0, 0,
 		-SCIPinfinity( _scip ), SCIPinfinity( _scip ),
 		true, true, true, true, true, false, false, false, false, false ) );
 
-	// z2 <= epsilon
+	// objective <= epsilon
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
-		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], instance.f[1][j] ) );
+		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], instance.f[k][j] ) );
 	}
 
 	for ( int i = 0; i < instance.num_customers; ++i )
 	{
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
-			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _x[i][j], instance.c[1][i][j] ) );
+			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _x[i][j], instance.c[k][i][j] ) );
 		}
 	}
 
