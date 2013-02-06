@@ -495,11 +495,14 @@ void flp_solver::store_dual()
 			_assign_dual[i] = SCIPgetDualsolLinear( _scip, transformed );
 	}
 
-	for ( int j = 0; j < instance.num_facilities; ++j )
+	if ( instance.capacitated )
 	{
-		SCIPgetTransformedCons( _scip, _cap_cons[j], &transformed );
-		if ( transformed )
-			_cap_dual[j] = SCIPgetDualsolLinear( _scip, transformed );
+		for ( int j = 0; j < instance.num_facilities; ++j )
+		{
+			SCIPgetTransformedCons( _scip, _cap_cons[j], &transformed );
+			if ( transformed )
+				_cap_dual[j] = SCIPgetDualsolLinear( _scip, transformed );
+		}
 	}
 
 	for ( int i = 0; i < instance.num_customers; ++i )
