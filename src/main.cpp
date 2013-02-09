@@ -160,7 +160,7 @@ int main( int argc, char * argv[] )
 		std::clog << "Parsing " << argument::filename << "..." << std::endl;
 	}
 
-	problem instance( (bool)argument::capacitated, (bool)argument::single_sourcing );
+	problem instance( (bool)argument::capacitated, (bool)argument::single_source );
 	file >> instance;
 
 	// Begin benchmark

@@ -1,3 +1,18 @@
+/*
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #ifndef PROBLEM_HPP
 #define PROBLEM_HPP
 
@@ -17,9 +32,9 @@ struct problem
 		Parameters:
 			num_objectives - Number of objectives
 			capacitated - true for CFLP, false for UFLP
-			single_sourcing - true for SSCFLP, false for MSCFLP
+			single_source - true for SSCFLP, false for MSCFLP
 	*/
-	problem( int num_objectives, bool capacitated, bool single_sourcing );
+	problem( int num_objectives, bool capacitated = false, bool single_source = true );
 
 	/*
 		Constructor: problem
@@ -28,9 +43,9 @@ struct problem
 
 		Parameters:
 			capacitated - true for CFLP, false for UFLP
-			single_sourcing - true for SSCFLP, false for MSCFLP
+			single_source - true for SSCFLP, false for MSCFLP
 	*/
-	problem( bool capacitated, bool single_sourcing );
+	problem( bool capacitated = false, bool single_source = true );
 
 	// UFLP information
 
@@ -44,29 +59,14 @@ struct problem
 	// CFLP information
 
 	bool capacitated;        // true if CFLP, false otherwise
-	bool single_sourcing;    // true if SSCFLP, false otherwise
+	bool single_source;      // true if SSCFLP, false if MSCFLP
 	std::vector<double> d;   // Demand of customers
-	std::vector<double> Q;   // Capacity of facilities
+	std::vector<double> q;   // Capacity of facilities
 	double D;                // Total demand
+	double Q;                // Total capacity
 };
 
 std::istream & operator >> ( std::istream & is, problem & instance );
 std::ostream & operator << ( std::ostream & os, const problem & instance );
-
-////////////////////////////////////////////////////////////////////////////////
-
-inline problem::problem( int num_objectives, bool capacitated, bool single_sourcing ) :
-	num_objectives( num_objectives ),
-	capacitated( capacitated ),
-	single_sourcing( single_sourcing )
-{
-}
-
-inline problem::problem( bool capacitated, bool single_sourcing ) :
-	num_objectives( 2 ),
-	capacitated( capacitated ),
-	single_sourcing( single_sourcing )
-{
-}
 
 #endif

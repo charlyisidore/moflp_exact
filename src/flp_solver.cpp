@@ -164,7 +164,7 @@ double flp_solver::z( int k ) const
 	{
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
-			if ( _relaxation || !instance.single_sourcing )
+			if ( _relaxation || !instance.single_source )
 				obj += x_real( i, j ) * instance.c[k][i][j];
 			else if ( x( i, j ) )
 				obj += instance.c[k][i][j];
@@ -283,7 +283,7 @@ void flp_solver::initialize_variables()
 
 			// create the SCIP_VAR object
 			SCIP_CALL_EXC( SCIPcreateVar( _scip, &var, namebuf.str().c_str(), 0.0, 1.0, instance.c[k][i][j],
-				( _relaxation || !instance.single_sourcing ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
+				( _relaxation || !instance.single_source ) ? SCIP_VARTYPE_CONTINUOUS : SCIP_VARTYPE_BINARY,
 				true, false, 0, 0, 0, 0, 0 ) );
 
 			// add the SCIP_VAR object to the scip problem
@@ -363,12 +363,12 @@ void flp_solver::initialize_capacity_constraints()
 			-SCIPinfinity( _scip ), 0.0,
 			true, true, true, true, true, false, false, false, false, false ) );
 
-		// sum(i=1 to m) d(i) x(i,j) <= Q(j) y(j)
+		// sum(i=1 to m) d(i) x(i,j) <= q(j) y(j)
 		for ( int i = 0; i < instance.num_customers; ++i )
 		{
 			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _x[i][j], instance.d[i] ) );
 		}
-		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], -instance.Q[j] ) );
+		SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], -instance.q[j] ) );
 
 		// add the constraint to scip
 		SCIP_CALL_EXC( SCIPaddCons( _scip, cons ) );
@@ -380,26 +380,18 @@ void flp_solver::initialize_capacity_constraints()
 
 void flp_solver::initialize_valid_inequalities()
 {
-	// initialize a cumulative demand array, sorted by increasing values
-	std::vector<double> d_cumul( instance.d );
-	std::sort( d_cumul.begin(), d_cumul.end() );
-	std::partial_sum( d_cumul.begin(), d_cumul.end(), d_cumul.begin() );
-
-	// compute total demand = sum(i=1 to m) d(i)
-	double D = d_cumul.back();
-
 	// demand covering
 	{
 		SCIP_CONS * cons;
 
 		SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, "cover", 0, 0, 0,
-			D, SCIPinfinity( _scip ),
+			instance.D, SCIPinfinity( _scip ),
 			true, true, true, true, true, false, false, false, false, false ) );
 
-		// sum(j=1 to n) Q(j) y(j) >= sum(i=1 to m) d(i)
+		// sum(j=1 to n) q(j) y(j) >= sum(i=1 to m) d(i)
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
-			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], instance.Q[j] ) );
+			SCIP_CALL_EXC( SCIPaddCoefLinear( _scip, cons, _y[j], instance.q[j] ) );
 		}
 
 		// add the constraint to scip
@@ -411,7 +403,7 @@ void flp_solver::initialize_valid_inequalities()
 		SCIP_CONS * cons;
 
 		SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, "limit", 0, 0, 0,
-			-SCIPinfinity( _scip ), D,
+			-SCIPinfinity( _scip ), instance.D,
 			true, true, true, true, true, false, false, false, false, false ) );
 
 		// sum(i=1 to m) sum(j=1 to n) d(i) x(i,j) <= sum(i=1 to m) d(i)
@@ -428,6 +420,11 @@ void flp_solver::initialize_valid_inequalities()
 	}
 
 #if 0
+	// initialize a cumulative demand array, sorted by increasing values
+	std::vector<double> d_cumul( instance.d );
+	std::sort( d_cumul.begin(), d_cumul.end() );
+	std::partial_sum( d_cumul.begin(), d_cumul.end(), d_cumul.begin() );
+
 	// maximum number of assignments for a facility
 	for ( int j = 0; j < instance.num_facilities; ++j )
 	{
@@ -435,7 +432,7 @@ void flp_solver::initialize_valid_inequalities()
 		std::ostringstream namebuf;
 		namebuf << "max_assign_" << j;
 
-		int max_assign = std::upper_bound( d_cumul.begin(), d_cumul.end(), instance.Q[j] ) - d_cumul.begin();
+		int max_assign = std::upper_bound( d_cumul.begin(), d_cumul.end(), instance.q[j] ) - d_cumul.begin();
 
 		SCIP_CALL_EXC( SCIPcreateConsLinear( _scip, &cons, namebuf.str().c_str(), 0, 0, 0,
 			-SCIPinfinity( _scip ), max_assign,

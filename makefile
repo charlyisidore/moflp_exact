@@ -21,3 +21,6 @@ clean :
 mrproper:
 	find . -name '*~' -print0 | xargs -0 -r rm
 
+archive :
+	tar -czf $(EXEC)_`date --rfc-3339='date'`.tar.gz --ignore-failed-read makefile README.md COPYING include/*.hpp src/*.cpp
+

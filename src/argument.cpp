@@ -5,7 +5,7 @@
 #include <cstdlib>
 
 int argument::capacitated( 1 );
-int argument::single_sourcing( 1 );
+int argument::single_source( 1 );
 int argument::relaxation( 0 );
 int argument::lexicographic( 0 );
 int argument::weighted_sum( 0 );
@@ -25,8 +25,8 @@ std::string argument::filename;
 static const struct option long_options[] = {
 	{ "uncapacitated",    no_argument,       &argument::capacitated,      0   },
 	{ "capacitated",      no_argument,       &argument::capacitated,      1   },
-	{ "single-sourcing",  no_argument,       &argument::single_sourcing,  1   },
-	{ "multi-sourcing",   no_argument,       &argument::single_sourcing,  0   },
+	{ "single-source",    no_argument,       &argument::single_source,    1   },
+	{ "multi-source",     no_argument,       &argument::single_source,    0   },
 	{ "relaxation",       no_argument,       &argument::relaxation,       1   },
 	{ "lexicographic",    optional_argument, 0,                           'l' },
 	{ "weighted-sum",     required_argument, 0,                           'w' },
@@ -63,7 +63,7 @@ void argument::parse( int argc, char *argv[] )
 				break;
 
 			case 'm':
-				single_sourcing = 0;
+				single_source = 0;
 				break;
 
 			case 'r':
@@ -164,13 +164,14 @@ void argument::print( std::ostream & os )
 	os
 		<< "File: " << filename << std::endl
 		<< "Options:" << std::endl
-		<< "\tcapacitated      = " << capacitated     << std::endl
-		<< "\tsingle-sourcing  = " << single_sourcing << std::endl
-		<< "\trelaxation       = " << relaxation      << std::endl
-		<< "\tlexicographic    = " << lexicographic   << std::endl
-		<< "\tweighted-sum     = " << weighted_sum    << std::endl
-		<< "\tsupported        = " << supported       << std::endl
-		<< "\tefficient        = " << efficient       << std::endl;
+		<< std::boolalpha
+		<< "\tcapacitated      = " << (bool)capacitated   << std::endl
+		<< "\tsingle-source    = " << (bool)single_source << std::endl
+		<< "\trelaxation       = " << (bool)relaxation    << std::endl
+		<< "\tlexicographic    = " << (bool)lexicographic << std::endl
+		<< "\tweighted-sum     = " << (bool)weighted_sum  << std::endl
+		<< "\tsupported        = " << (bool)supported     << std::endl
+		<< "\tefficient        = " << (bool)efficient     << std::endl;
 
 	if ( lexicographic && objective )
 	{
@@ -198,8 +199,8 @@ void argument::print( std::ostream & os )
 	}
 
 	os
-		<< "\tdisplay-solution = " << display_solution << std::endl
-		<< "\tverbose          = " << verbose << std::endl;
+		<< "\tdisplay-solution = " << (bool)display_solution << std::endl
+		<< "\tverbose          = " << (bool)verbose          << std::endl;
 
 	if ( verbose )
 	{
@@ -215,7 +216,7 @@ void argument::usage( const char * program_name, std::ostream & os )
 		<< "Options:" << std::endl
 		<< "\t-u,--uncapacitated     for uncapacitated facility location"   << std::endl
 		<< "\t-c,--capacitated       for capacitated facility location"     << std::endl
-		<< "\t-m,--multi-sourcing    for multi sourcing facility location"  << std::endl
+		<< "\t-m,--multi-source      for multi source facility location"    << std::endl
 		<< "\t-r,--relaxation        for relaxed problem"                   << std::endl
 		<< "\t-l,--lexicographic     to get lexicographic solutions"        << std::endl
 		<< "\t   --lexicographic=<k> to compute only for objective k"       << std::endl

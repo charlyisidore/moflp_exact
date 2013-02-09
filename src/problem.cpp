@@ -1,14 +1,33 @@
 #include "problem.hpp"
 #include <limits>
 
+problem::problem( int num_objectives, bool capacitated, bool single_source ) :
+	num_objectives( num_objectives ),
+	capacitated( capacitated ),
+	single_source( single_source ),
+	D( 0. ),
+	Q( std::numeric_limits<double>::infinity() )
+{
+}
+
+problem::problem( bool capacitated, bool single_source ) :
+	num_objectives( 2 ),
+	capacitated( capacitated ),
+	single_source( single_source ),
+	D( 0. ),
+	Q( std::numeric_limits<double>::infinity() )
+{
+}
+
 std::istream & operator >> ( std::istream & is, problem & instance )
 {
 	// Reset all
 	instance.c.clear();
 	instance.f.clear();
 	instance.d.clear();
-	instance.Q.clear();
+	instance.q.clear();
 	instance.D = 0.;
+	instance.Q = std::numeric_limits<double>::infinity();
 
 	// Number of customers and facilities
 	is >> instance.num_customers;
@@ -24,7 +43,7 @@ std::istream & operator >> ( std::istream & is, problem & instance )
 
 	// Resize demands and capacities
 	instance.d.resize( instance.num_customers, 0 );
-	instance.Q.resize( instance.num_facilities, std::numeric_limits<double>::infinity() );
+	instance.q.resize( instance.num_facilities, std::numeric_limits<double>::infinity() );
 
 	// Read assignment costs
 	for ( int k = 0; k < instance.num_objectives; ++k )
@@ -58,9 +77,11 @@ std::istream & operator >> ( std::istream & is, problem & instance )
 		}
 
 		// Read capacities
+		instance.Q = 0.;
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
-			is >> instance.Q[j];
+			is >> instance.q[j];
+			instance.Q += instance.q[j];
 		}
 	}
 
@@ -115,7 +136,7 @@ std::ostream & operator << ( std::ostream & os, const problem & instance )
 		for ( int j = 0; j < instance.num_facilities; ++j )
 		{
 			if ( j > 0 ) os << ' ';
-			os << instance.Q[j];
+			os << instance.q[j];
 		}
 		os << std::endl << std::endl;
 	}
